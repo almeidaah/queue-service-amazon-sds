@@ -1,11 +1,15 @@
 package com.example.main;
 
-import com.example.FileQueueService;
+import com.amazonaws.services.sqs.model.Message;
+import com.example.InMemoryQueueService;
 import com.example.QueueService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
+
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
 
 @SpringBootApplication
 public class QueueApp implements CommandLineRunner {
@@ -20,29 +24,31 @@ public class QueueApp implements CommandLineRunner {
         QueueService queue;
 
         {//InMemoryQueue
-//            final ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(100);
-//
-//            queue = new InMemoryQueueService(scheduler, serverProperties.getQueueSize());
-//
-//            queue.push("Test Message 1");
-//            queue.push("Test Message 2");
-//            queue.push("Test Message 3");
-//            Message m = queue.pull();
-//            queue.pull();
-//            queue.pull();
-//
-//            //Delete Test Message 1
-//            queue.delete(m.getReceiptHandle());
+            final ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(100);
+
+            queue = new InMemoryQueueService(scheduler, serverProperties.getQueueSize());
+
+            queue.push("Test Message 1");
+            queue.push("Test Message 2");
+            queue.push("Test Message 3");
+            Message m = queue.pull().get();
+            queue.pull();
+            queue.pull();
+
+            //Delete Test Message 1
+            queue.delete(m.getReceiptHandle());
         }
 
         {//FileQueue
-            queue = new FileQueueService("/tmp/messages", serverProperties.getQueueSize());
-            queue.push("Message1");
-            queue.push("Message2");
-            queue.push("Message3");
-            queue.push("Message4");
-            queue.push("Message5");
-            queue.delete("");
+//            queue = new FileQueueService(scheduler, "/tmp/messages", serverProperties.getQueueSize());
+//            queue.push("Message1");
+//            queue.push("Message2");
+//            queue.push("Message3");
+//
+//            queue.pull();
+//            queue.pull();
+//
+//            queue.delete("");
         }
 
 

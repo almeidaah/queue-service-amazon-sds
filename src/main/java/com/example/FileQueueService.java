@@ -10,26 +10,39 @@ import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledFuture;
 
 
 public class FileQueueService implements QueueService {
 
-    //
-    // Task 3: Implement me if you have time.
-    //
-
     public File messages;
+    public File tempMessages;
+    private ScheduledExecutorService executorService;
+
     private File qFileLock;
 
-    private final Integer QUEUE_SIZE;
+    private ConcurrentMap<String, ScheduledFuture> temporaryMessages;
 
-    public FileQueueService(String filePath, Integer queueSize) throws IOException, InterruptedException {
-        this.QUEUE_SIZE = queueSize;
+
+    public FileQueueService(ScheduledExecutorService executorService, String filePath, Integer queueSize) throws IOException, InterruptedException {
+
+        this.executorService = executorService;
+
+        //Temporary Queue Size
+        temporaryMessages = new ConcurrentHashMap<>(queueSize);
 
         this.messages = new File(filePath);
+        this.tempMessages = new File(filePath + "Temp");
 
         if (!Files.exists(Paths.get(messages.getPath()))) {
             this.messages.createNewFile();
+        }
+
+        if (!Files.exists(Paths.get(tempMessages.getPath()))) {
+            this.tempMessages.createNewFile();
         }
 
         this.qFileLock = new File("/tmp/qFileLock");
@@ -52,10 +65,9 @@ public class FileQueueService implements QueueService {
 
     @Override
     public void push(String message) {
-        try {
+        try (FileWriter fw = new FileWriter(messages, true)) {
             this.lock(this.getLockFile());
 
-            FileWriter fw = new FileWriter(messages, true);
             fw.write(message);
             fw.write(System.lineSeparator());
             fw.flush();
@@ -77,6 +89,11 @@ public class FileQueueService implements QueueService {
 
             Message msg = new Message().withBody(lastLineStr);
 
+//            Runnable runnable = () -> {
+//                pushToTemp(lastLineStr);
+//            };
+//            ScheduledFuture future = executorService.schedule(runnable, (long) this.DEFAULT_VISIBILITY_TIMEOUT, TimeUnit.SECONDS);
+
             return Optional.of(msg);
 
         } catch (IOException | InterruptedException e) {
@@ -87,12 +104,25 @@ public class FileQueueService implements QueueService {
         return Optional.empty();
     }
 
+    private void pushToTemp(String lastLineStr) {
+        try (FileWriter fw = new FileWriter(tempMessages, true)) {
+            fw.write(lastLineStr);
+            fw.write(System.lineSeparator());
+            fw.flush();
+        } catch (IOException e) {
+            e.printStackTrace();
+        } finally {
+            unlock(this.getLockFile());
+        }
+    }
+
     @Override
     public void delete(String receiptHandle) {
-        try {
-            this.lock(this.getLockFile());
+        //Should Delete From Temp
+        //try (RandomAccessFile messageRandomFile = new RandomAccessFile(messages, "rw")) {
 
-            RandomAccessFile messageRandomFile = new RandomAccessFile(messages, "rw");
+        try (RandomAccessFile messageRandomFile = new RandomAccessFile(messages, "rw")) {
+            this.lock(this.getLockFile());
 
             //remove last line
             long length = messageRandomFile.length() - 1;
@@ -105,7 +135,6 @@ public class FileQueueService implements QueueService {
 
             //truncate after find linefeed[b=10]
             messageRandomFile.setLength(length + 1);
-            messageRandomFile.close();
 
         } catch (IOException | InterruptedException e) {
             e.printStackTrace();

@@ -6,6 +6,8 @@ import java.util.Optional;
 
 public interface QueueService {
 
+    public static final Integer DEFAULT_VISIBILITY_TIMEOUT = 3000;
+
     //
     // Task 1: Define me.
     //

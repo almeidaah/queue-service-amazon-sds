@@ -11,26 +11,22 @@ import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Optional;
-import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.Executors;
 import java.util.stream.IntStream;
 
 import static org.junit.Assert.assertEquals;
 
 public class FileQueueTest extends AbstractTest {
-    //
-    // Implement me if you have time.
-    //
 
     private final int MAX_TIMEOUT_IN_SECONDS = 20;
     private FileQueueService fileQueue;
-    private ScheduledExecutorService scheduledExecutorService;
 
     @Before
     public void setUp() throws Exception {
         //Remove file before test
         File file = new File("/tmp/messages2");
         file.delete();
-        fileQueue = new FileQueueService("/tmp/messages2", 50);
+        fileQueue = new FileQueueService(Executors.newScheduledThreadPool(100), "/tmp/messages2", 50);
     }
 
     @Test
@@ -69,7 +65,6 @@ public class FileQueueTest extends AbstractTest {
         });
 
         assertConcurrent(executions, MAX_TIMEOUT_IN_SECONDS);
-//        verify(scheduledExecutorService, never()).schedule(any(Runnable.class), anyLong(), any(TimeUnit.class));
 
         Integer totalLines = Files.readAllLines(Paths.get(fileQueue.getMessages().getPath())).size();
         Assert.assertEquals(times, totalLines.longValue());

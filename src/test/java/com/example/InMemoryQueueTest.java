@@ -21,10 +21,6 @@ import static org.mockito.Mockito.*;
 
 public class InMemoryQueueTest extends AbstractTest {
 
-    //
-    // Implement me.
-    //
-
     private final int MAX_TIMEOUT_IN_SECONDS = 20;
     private InMemoryQueueService queue;
     private ScheduledExecutorService scheduledExecutorService;

@@ -8,11 +8,6 @@ import java.util.concurrent.*;
 
 public class InMemoryQueueService implements QueueService {
 
-    //
-    // Task 2: Implement me.
-    //
-
-    public static final Integer DEFAULT_VISIBILITY_TIMEOUT = 3000;
 
     private ScheduledExecutorService executorService;
 
@@ -53,7 +48,6 @@ public class InMemoryQueueService implements QueueService {
         };
         ScheduledFuture scheduleFuture = executorService.schedule(runnable, (long) this.DEFAULT_VISIBILITY_TIMEOUT, TimeUnit.MILLISECONDS);
 
-        // And save that into our in-flight map
         temporaryMessages.put(randomUuid, scheduleFuture);
 
         Message msg = new Message()
