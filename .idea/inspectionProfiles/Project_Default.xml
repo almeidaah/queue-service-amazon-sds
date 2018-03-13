@@ -1,0 +1,28 @@
+<component name="InspectionProjectProfileManager">
+  <profile version="1.0">
+    <option name="myName" value="Project Default" />
+    <inspection_tool class="ClassWithTooManyDependencies" enabled="true" level="ERROR" enabled_by_default="true">
+      <option name="limit" value="10" />
+    </inspection_tool>
+    <inspection_tool class="ClassWithTooManyDependents" enabled="true" level="ERROR" enabled_by_default="true">
+      <option name="limit" value="10" />
+    </inspection_tool>
+    <inspection_tool class="ClassWithTooManyTransitiveDependencies" enabled="true" level="ERROR" enabled_by_default="true">
+      <option name="limit" value="35" />
+    </inspection_tool>
+    <inspection_tool class="ClassWithTooManyTransitiveDependents" enabled="true" level="ERROR" enabled_by_default="true">
+      <option name="limit" value="35" />
+    </inspection_tool>
+    <inspection_tool class="CyclicClassDependency" enabled="true" level="ERROR" enabled_by_default="true" />
+    <inspection_tool class="CyclicPackageDependency" enabled="true" level="ERROR" enabled_by_default="true" />
+    <inspection_tool class="ELDeferredExpressionsInspection" enabled="false" level="WARNING" enabled_by_default="false" />
+    <inspection_tool class="ELMethodSignatureInspection" enabled="false" level="WARNING" enabled_by_default="false" />
+    <inspection_tool class="ELValidationInJSP" enabled="false" level="WARNING" enabled_by_default="false" />
+    <inspection_tool class="JavacQuirks" enabled="false" level="WARNING" enabled_by_default="false" />
+    <inspection_tool class="JspAbsolutePathInspection" enabled="false" level="WARNING" enabled_by_default="false" />
+    <inspection_tool class="MissedExecutable" enabled="false" level="WARNING" enabled_by_default="false" />
+    <inspection_tool class="SelfIncludingJspFiles" enabled="false" level="ERROR" enabled_by_default="false" />
+    <inspection_tool class="UNCHECKED_WARNING" enabled="false" level="WARNING" enabled_by_default="false" />
+    <inspection_tool class="UnhandledExceptionInJSP" enabled="false" level="WARNING" enabled_by_default="false" />
+  </profile>
+</component>

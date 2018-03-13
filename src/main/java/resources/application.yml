@@ -1,0 +1,46 @@
+logging:
+  level:
+    .: error
+    org.springframework: ERROR
+    com.mkyong: ERROR
+
+
+---
+
+spring:
+  profiles: dev
+server:
+  env: DEV
+  queueSize: 1000
+
+---
+
+spring:
+  profiles: testing
+server:
+  env: QA
+  queueSize: 5000
+
+---
+
+spring:
+  profiles: integration-testing
+server:
+  env: IT
+  queueSize: 10000
+
+---
+
+spring:
+  profiles: staging
+server:
+  env: STG
+  queueSize: 35000
+
+---
+
+spring:
+  profiles: production
+server:
+  env: PRD
+  queueSize: 250000
