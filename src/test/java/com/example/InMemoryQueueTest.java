@@ -28,7 +28,7 @@ public class InMemoryQueueTest extends AbstractTest {
     @Before
     public void setUp() throws Exception {
         this.scheduledExecutorService = mock(ScheduledExecutorService.class);
-        this.queue = new InMemoryQueueService(scheduledExecutorService, 5000);
+        this.queue = new InMemoryQueueService(scheduledExecutorService, 5000, 5000L);
     }
 
     @Test
@@ -53,7 +53,6 @@ public class InMemoryQueueTest extends AbstractTest {
         ScheduledFuture<?> mockFuture = mock(ScheduledFuture.class);
         doReturn(mockFuture).when(this.scheduledExecutorService).schedule(any(Runnable.class), anyLong(), any(TimeUnit.class));
 
-        // Populate the queue with some messages
         List<String> sentMessages = Collections.synchronizedList(new ArrayList<>());
 
         IntStream.range(0, executionTimes).forEach(i -> {
@@ -76,7 +75,7 @@ public class InMemoryQueueTest extends AbstractTest {
         assertConcurrent(runners, MAX_TIMEOUT_IN_SECONDS);
 
         // Verify the executor being called and upon poll we set it to delete the message within a certain timeout
-        verify(scheduledExecutorService, times(executionTimes)).schedule(isA(Runnable.class), eq(new Long(InMemoryQueueService.DEFAULT_VISIBILITY_TIMEOUT)), eq(TimeUnit.MILLISECONDS));
+        verify(scheduledExecutorService, times(executionTimes)).schedule(isA(Runnable.class), eq(5000L), eq(TimeUnit.MILLISECONDS));
 
         assertEquals(0L, queue.getMessagesSize().longValue());
         assertEquals(0, sentMessages.size());

@@ -4,7 +4,6 @@ logging:
     org.springframework: ERROR
     com.mkyong: ERROR
 
-
 ---
 
 spring:
@@ -12,6 +11,7 @@ spring:
 server:
   env: DEV
   queueSize: 1000
+  visibilityTimeout: 5000
 
 ---
 
@@ -20,6 +20,7 @@ spring:
 server:
   env: QA
   queueSize: 5000
+  visibilityTimeout: 3000
 
 ---
 
@@ -28,6 +29,7 @@ spring:
 server:
   env: IT
   queueSize: 10000
+  visibilityTimeout: 2000
 
 ---
 
@@ -36,6 +38,7 @@ spring:
 server:
   env: STG
   queueSize: 35000
+  visibilityTimeout: 1000
 
 ---
 
@@ -44,3 +47,4 @@ spring:
 server:
   env: PRD
   queueSize: 250000
+  visibilityTimeout: 500

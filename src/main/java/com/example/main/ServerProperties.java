@@ -3,15 +3,13 @@ package com.example.main;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.stereotype.Component;
 
-import java.util.ArrayList;
-import java.util.List;
-
 @Component
 @ConfigurationProperties("server")
 public class ServerProperties {
 
     private String env;
     private Integer queueSize;
+    private Long visibilityTimeout;
 
     public String getEnv() {
         return env;
@@ -29,11 +27,16 @@ public class ServerProperties {
         this.queueSize = queueSize;
     }
 
+    public Long getVisibilityTimeout() {
+        return visibilityTimeout;
+    }
+
+    public void setVisibilityTimeout(Long visibilityTimeout) {
+        this.visibilityTimeout = visibilityTimeout;
+    }
+
     @Override
     public String toString() {
-        return "ServerProperties{" +
-                "env='" + env + '\'' +
-                "qSize='" + queueSize + '\'' +
-                '}';
+        return String.format("ServerProperties{ envvironment = %s, queueSize = %d, visibilityTimeout = %d", env, queueSize, visibilityTimeout);
     }
 }

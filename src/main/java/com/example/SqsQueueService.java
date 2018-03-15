@@ -2,9 +2,10 @@ package com.example;
 
 import com.amazonaws.services.sqs.AmazonSQSClient;
 import com.amazonaws.services.sqs.model.CreateQueueRequest;
-import com.amazonaws.services.sqs.model.CreateQueueResult;
 import com.amazonaws.services.sqs.model.Message;
-import com.amazonaws.services.sqs.model.ReceiveMessageResult;
+import com.example.main.QueueApp;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.Optional;
 
@@ -20,44 +21,36 @@ public class SqsQueueService implements QueueService {
     // terms of how well they map to the implementation intended for a production environment.
     //
 
+    final Logger logger = LoggerFactory.getLogger(QueueApp.class);
+
     private AmazonSQSClient sqsClient;
 
     public SqsQueueService(AmazonSQSClient sqsClient) {
         this.sqsClient = sqsClient;
-        createQueue();
+        sqsClient.createQueue(new CreateQueueRequest());
 
     }
-
-    private void createQueue() {
-        CreateQueueResult queue = sqsClient.createQueue(new CreateQueueRequest());
-    }
-
 
     @Override
     public void push(String message) {
         try {
             sqsClient.sendMessage("queueUrl", message);
         } catch (Exception e) {
-            e.printStackTrace();
+            logger.error(e.getMessage());
         }
     }
 
     @Override
     public Optional<Message> pull() {
         try {
-            ReceiveMessageResult result = sqsClient.receiveMessage("queueUrl");
-            if (result.getMessages().size() > 0) {
-                return Optional.of(result.getMessages().get(0));
-            }
+            return sqsClient.receiveMessage("queueUrl").getMessages().stream().findFirst();
         } catch (Exception e) {
-            e.printStackTrace();
+            logger.error(e.getMessage());
         }
-
-        return null;
+        return Optional.empty();
     }
 
     public void delete(String receiptHandle) {
         sqsClient.deleteMessage("queueUrl", receiptHandle);
-
     }
 }

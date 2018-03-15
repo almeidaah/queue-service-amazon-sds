@@ -1,6 +1,8 @@
 package com.example;
 
 import com.amazonaws.services.sqs.model.Message;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.io.FileWriter;
@@ -10,43 +12,34 @@ import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.List;
 import java.util.Optional;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentMap;
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.ScheduledFuture;
+import java.util.UUID;
+import java.util.concurrent.*;
 
+import static java.util.stream.Collectors.toList;
 
 public class FileQueueService implements QueueService {
 
-    public File messages;
-    public File tempMessages;
+    private File messages;
+    private File tempMessageFile;
     private ScheduledExecutorService executorService;
+    private final Long visibilityTimeout;
+
+    private ConcurrentMap<String, ScheduledFuture<Message>> temporarySchedulers = new ConcurrentHashMap<>();
 
     private File qFileLock;
 
-    private ConcurrentMap<String, ScheduledFuture> temporaryMessages;
+    final Logger logger = LoggerFactory.getLogger(FileQueueService.class);
 
-
-    public FileQueueService(ScheduledExecutorService executorService, String filePath, Integer queueSize) throws IOException, InterruptedException {
-
+    public FileQueueService(ScheduledExecutorService executorService, String filePath, Integer queueSize, Long visibilityTimeout) throws IOException, InterruptedException {
         this.executorService = executorService;
-
-        //Temporary Queue Size
-        temporaryMessages = new ConcurrentHashMap<>(queueSize);
-
+        this.visibilityTimeout = visibilityTimeout;
         this.messages = new File(filePath);
-        this.tempMessages = new File(filePath + "Temp");
 
         if (!Files.exists(Paths.get(messages.getPath()))) {
             this.messages.createNewFile();
         }
 
-        if (!Files.exists(Paths.get(tempMessages.getPath()))) {
-            this.tempMessages.createNewFile();
-        }
-
         this.qFileLock = new File("/tmp/qFileLock");
-
     }
 
     private void lock(File lock) throws InterruptedException, IOException {
@@ -70,47 +63,65 @@ public class FileQueueService implements QueueService {
 
             fw.write(message);
             fw.write(System.lineSeparator());
-            fw.flush();
+            logger.info("===Message added===");
 
         } catch (IOException | InterruptedException e) {
-            e.printStackTrace();
+            logger.error(e.getMessage());
         } finally {
             unlock(this.getLockFile());
         }
     }
 
+    /*
+     * Should improve this implementation using .lock by file.
+     */
     @Override
     public Optional<Message> pull() {
         try {
             this.lock(this.getLockFile());
 
-            List<String> allLines = Files.readAllLines(Paths.get(messages.getPath()));
-            String lastLineStr = allLines.stream().skip(allLines.size() - 1).findFirst().get();
+            String randomUuid = UUID.randomUUID().toString();
 
-            Message msg = new Message().withBody(lastLineStr);
+            List<String> lines = Files.lines(Paths.get(messages.getPath())).collect(toList());
+            String lastLineStr = lines.get(lines.size() - 1);
 
-//            Runnable runnable = () -> {
-//                pushToTemp(lastLineStr);
-//            };
-//            ScheduledFuture future = executorService.schedule(runnable, (long) this.DEFAULT_VISIBILITY_TIMEOUT, TimeUnit.SECONDS);
+            Runnable runnable = () -> {
+                this.push(lastLineStr);
+                tempMessageFile = new File("/tmp/" + randomUuid);
+                tempMessageFile.delete();
+                temporarySchedulers.remove(randomUuid);
 
-            return Optional.of(msg);
+                logger.info("===Pull Message : " + lastLineStr + "===");
+            };
+            ScheduledFuture<Message> future = (ScheduledFuture<Message>) executorService.schedule(runnable, visibilityTimeout, TimeUnit.MILLISECONDS);
+
+            removeLastLine(new RandomAccessFile(messages, "rw"));
+
+            pushToTemp(randomUuid, lastLineStr);
+            temporarySchedulers.put(randomUuid, future);
+
+            return Optional.of(new Message()
+                    .withReceiptHandle(randomUuid)
+                    .withBody(lastLineStr));
 
         } catch (IOException | InterruptedException e) {
-            e.printStackTrace();
+            logger.error(e.getMessage());
         } finally {
             unlock(this.getLockFile());
         }
         return Optional.empty();
     }
 
-    private void pushToTemp(String lastLineStr) {
-        try (FileWriter fw = new FileWriter(tempMessages, true)) {
+    private void pushToTemp(String randomUuid, String lastLineStr) throws IOException {
+
+        tempMessageFile = new File("/tmp/" + randomUuid);
+        tempMessageFile.createNewFile();
+
+        try (FileWriter fw = new FileWriter(tempMessageFile, true)) {
             fw.write(lastLineStr);
             fw.write(System.lineSeparator());
-            fw.flush();
         } catch (IOException e) {
-            e.printStackTrace();
+            logger.error(e.getMessage());
         } finally {
             unlock(this.getLockFile());
         }
@@ -118,30 +129,25 @@ public class FileQueueService implements QueueService {
 
     @Override
     public void delete(String receiptHandle) {
-        //Should Delete From Temp
-        //try (RandomAccessFile messageRandomFile = new RandomAccessFile(messages, "rw")) {
+        ScheduledFuture<Message> sFuture = temporarySchedulers.remove(receiptHandle);
+        if (sFuture == null) throw new RuntimeException("Message not exist");
 
-        try (RandomAccessFile messageRandomFile = new RandomAccessFile(messages, "rw")) {
-            this.lock(this.getLockFile());
+        sFuture.cancel(true);
+        logger.info("===Message Deleted : " + receiptHandle + "===");
+    }
 
-            //remove last line
-            long length = messageRandomFile.length() - 1;
-            byte actualByte;
-            do {
-                length -= 1;
-                messageRandomFile.seek(length);
-                actualByte = messageRandomFile.readByte();
-            } while (actualByte != 10);
+    private void removeLastLine(RandomAccessFile file) throws IOException {
+        long length = file.length() - 1;
+        byte actualByte;
 
-            //truncate after find linefeed[b=10]
-            messageRandomFile.setLength(length + 1);
+        do {
+            length -= 1;
+            file.seek(length);
+            actualByte = file.readByte();
+        } while (actualByte != 10);
 
-        } catch (IOException | InterruptedException e) {
-            e.printStackTrace();
-        } finally {
-            unlock(this.getLockFile());
-        }
-
+        //truncate after find linefeed[b=10]
+        file.setLength(length + 1);
     }
 
     public File getMessages() {

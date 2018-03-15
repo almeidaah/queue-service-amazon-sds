@@ -1,6 +1,8 @@
 package com.example;
 
 import com.amazonaws.services.sqs.model.Message;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.Optional;
 import java.util.UUID;
@@ -8,45 +10,37 @@ import java.util.concurrent.*;
 
 public class InMemoryQueueService implements QueueService {
 
-
     private ScheduledExecutorService executorService;
+    private final Long visibilityTimeout;
 
     //BlockingQueue uses FIFO and is thread-safe
     private BlockingQueue<String> messages;
 
-    private ConcurrentMap<String, ScheduledFuture> temporaryMessages = new ConcurrentHashMap<>();
+    private ConcurrentMap<String, ScheduledFuture<Message>> temporaryMessages = new ConcurrentHashMap<>();
 
-    public InMemoryQueueService(ScheduledExecutorService executorService, Integer queueSize) {
+    final Logger logger = LoggerFactory.getLogger(InMemoryQueueService.class);
+
+    public InMemoryQueueService(ScheduledExecutorService executorService, Integer queueSize, Long visibilityTimeout) {
         this.executorService = executorService;
+        this.visibilityTimeout = visibilityTimeout;
         messages = new LinkedBlockingQueue<>(queueSize);
     }
 
-    /**
-     * Add message into memory blocking queue
-     *
-     * @param messageBody
-     */
     public void push(String messageBody) {
         messages.add(messageBody);
-        System.out.println("===Message added.===");
+        logger.info("===Message added===");
     }
 
-    /**
-     * Retrieve a message from queue
-     *
-     * @return Message
-     */
     public Optional<Message> pull() {
         String randomUuid = UUID.randomUUID().toString();
         String messageBody = messages.poll();
 
-        // Schedule reinsert on messages
         Runnable runnable = () -> {
             messages.add(messageBody);
             temporaryMessages.remove(randomUuid);
-            System.out.println("===Pull Message : " + messageBody + "===");
+            logger.info("===Pull Message : " + messageBody + "===");
         };
-        ScheduledFuture scheduleFuture = executorService.schedule(runnable, (long) this.DEFAULT_VISIBILITY_TIMEOUT, TimeUnit.MILLISECONDS);
+        ScheduledFuture<Message> scheduleFuture = (ScheduledFuture<Message>) executorService.schedule(runnable, visibilityTimeout, TimeUnit.MILLISECONDS);
 
         temporaryMessages.put(randomUuid, scheduleFuture);
 
@@ -58,16 +52,13 @@ public class InMemoryQueueService implements QueueService {
         return Optional.of(msg);
     }
 
-    /**
-     * If the consumer delete the message, it will be removed from the temporaryMessages
-     *
-     * @param receiptHandle
-     */
     public void delete(String receiptHandle) {
-        ScheduledFuture sFuture = temporaryMessages.remove(receiptHandle);
+        ScheduledFuture<Message> sFuture = temporaryMessages.remove(receiptHandle);
         if (sFuture == null) {
             throw new RuntimeException("Message not exist");
         }
+
+        logger.info("===Message Deleted : " + receiptHandle + "===");
 
         // Cancel the future schedule
         sFuture.cancel(true);

@@ -26,7 +26,7 @@ public class FileQueueTest extends AbstractTest {
         //Remove file before test
         File file = new File("/tmp/messages2");
         file.delete();
-        fileQueue = new FileQueueService(Executors.newScheduledThreadPool(100), "/tmp/messages2", 50);
+        fileQueue = new FileQueueService(Executors.newScheduledThreadPool(100), "/tmp/messages2", 50, 5000L);
     }
 
     @Test
@@ -50,7 +50,7 @@ public class FileQueueTest extends AbstractTest {
         assertEquals(msg, message.get().getBody());
 
         Integer totalLines = Files.readAllLines(Paths.get(fileQueue.getMessages().getPath())).size();
-        assertEquals(2, totalLines.longValue());
+        assertEquals(1, totalLines.longValue());
     }
 
 
@@ -60,9 +60,7 @@ public class FileQueueTest extends AbstractTest {
 
         ArrayList<Runnable> executions = new ArrayList<>();
 
-        IntStream.range(0, times).forEach(i -> {
-            executions.add(() -> fileQueue.push("Message :" + i));
-        });
+        IntStream.range(0, times).forEach(i -> executions.add(() -> fileQueue.push("Message :" + i)));
 
         assertConcurrent(executions, MAX_TIMEOUT_IN_SECONDS);
 
